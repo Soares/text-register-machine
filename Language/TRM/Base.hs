@@ -29,6 +29,9 @@ module Language.TRM.Base (
   , parseProgram
     -- ** Machine Implementation
   , Machine (..)
+  , machineToWord
+  , machineToString
+  , parseMachine
   , step
   , run
   , phi
@@ -56,6 +59,7 @@ module Language.TRM.Base (
 ) where
 
 import Control.Applicative
+import Control.Arrow (first)
 import Control.Monad
 import "mtl" Control.Monad.State
 import "mtl" Control.Monad.Writer
@@ -128,11 +132,11 @@ data Instruction = SnocOne  Register
 
 -- | Convert an 'Instruction' to concrete syntax.
 instructionToWord :: Instruction -> Word
-instructionToWord (SnocOne  (R r)) = (W $ replicate r One) <> "#"
-instructionToWord (SnocHash (R r)) = (W $ replicate r One) <> "##"
-instructionToWord (Forward  i)     = (W $ replicate i One) <> "###"
-instructionToWord (Backward i)     = (W $ replicate i One) <> "####"
-instructionToWord (Case     (R r)) = (W $ replicate r One) <> "#####"
+instructionToWord (SnocOne  (R r)) = (W $ replicate r One) ++ "#"
+instructionToWord (SnocHash (R r)) = (W $ replicate r One) ++ "##"
+instructionToWord (Forward  i)     = (W $ replicate i One) ++ "###"
+instructionToWord (Backward i)     = (W $ replicate i One) ++ "####"
+instructionToWord (Case     (R r)) = (W $ replicate r One) ++ "#####"
 
 instructionToString :: Instruction -> String
 instructionToString = wordToString . instructionToWord
@@ -177,6 +181,52 @@ data Machine = M { program :: Program
                  , pc      :: Int
                  , regs    :: Map Register Word
                  } deriving (Eq, Show)
+
+toUnary :: Int -> Word
+toUnary n = W (take n $ repeat One) ++ "#"
+
+consumeUnary :: Word -> Maybe (Int, Word)
+consumeUnary (W xs) = case xs of
+  (One : rest) -> (first succ) <$> (consumeUnary $ W rest)
+  (Hash : rest) -> Just (0, W rest)
+  [] -> Nothing
+
+machineToWord :: Machine -> Word
+machineToWord (M p c rs) = plen ++ pword ++ cword ++ rword where
+  pword = programToWord p
+  plen = wordlen pword
+  cword = toUnary c
+  rword = Map.foldWithKey encodeRegister "" rs
+  encodeRegister (R n) w str = toUnary n ++ wordlen w ++ w ++ str
+  wordlen (W xs) = toUnary $ length xs
+
+machineToString :: Machine -> String
+machineToString = wordToString . machineToWord
+
+splitWord :: Int -> Word -> Maybe (Word, Word)
+splitWord 0 (W letters) = Just (W [], W letters)
+splitWord n (W letters) = case letters of
+  x:xs -> (first $ wcons x) <$> (splitWord (pred n) (W xs))
+  _ -> Nothing
+  where wcons x (W xs) = W (x:xs)
+
+parseRegisterMap :: Word -> Maybe (Map Register Word)
+parseRegisterMap (W []) = Just Map.empty
+parseRegisterMap word0 = do
+  (n, word1) <- consumeUnary word0
+  (wlen, word2) <- consumeUnary word1
+  (w, word3) <- splitWord wlen word2
+  rest <- parseRegisterMap word3
+  return $ Map.insert (R n) w rest
+
+parseMachine :: Word -> Maybe Machine
+parseMachine word0 = do
+  (plen, word1) <- consumeUnary word0
+  (pword, word2) <- splitWord plen word1
+  (c, word3) <- consumeUnary word2
+  p <- parseProgram pword
+  rs <- parseRegisterMap word3
+  return $ M p c rs
 
 snocReg :: Register -> Letter -> Map Register Word -> Map Register Word
 snocReg r l regs = Map.insertWith (flip (++)) r (W [l]) regs
