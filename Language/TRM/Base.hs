@@ -21,8 +21,10 @@ module Language.TRM.Base (
     -- ** Registers, Instructions, and Programs
   , Register (..)
   , Instruction (..)
+  , instructionToWord
   , instructionToString
   , Program
+  , programToWord
   , programToString
   , parseProgram
     -- ** Machine Implementation
@@ -125,17 +127,23 @@ data Instruction = SnocOne  Register
                    deriving (Eq, Show)
 
 -- | Convert an 'Instruction' to concrete syntax.
+instructionToWord :: Instruction -> Word
+instructionToWord (SnocOne  (R r)) = (W $ replicate r One) <> "#"
+instructionToWord (SnocHash (R r)) = (W $ replicate r One) <> "##"
+instructionToWord (Forward  i)     = (W $ replicate i One) <> "###"
+instructionToWord (Backward i)     = (W $ replicate i One) <> "####"
+instructionToWord (Case     (R r)) = (W $ replicate r One) <> "#####"
+
 instructionToString :: Instruction -> String
-instructionToString (SnocOne  (R r)) = replicate r '1' ++ "#"
-instructionToString (SnocHash (R r)) = replicate r '1' ++ "##"
-instructionToString (Forward  i)     = replicate i '1' ++ "###"
-instructionToString (Backward i)     = replicate i '1' ++ "####"
-instructionToString (Case     (R r)) = replicate r '1' ++ "#####"
+instructionToString = wordToString . instructionToWord
 
 -- | A @1#@ program is a 'Vector' of 'Instruction's.
 type Program = Vector Instruction
 
 -- | Convert a 'Program' to concrete syntax.
+programToWord :: Program -> Word
+programToWord = mconcat . (map instructionToWord) . Vector.toList
+
 programToString :: Program -> String
 programToString = (intercalate " ") . (map instructionToString) . Vector.toList
 
