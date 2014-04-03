@@ -34,6 +34,7 @@ module Language.TRM.Base (
   , parseMachine
   , step
   , run
+  , runFor
   , phi
     -- * Labels and Gotos
     -- ** Language Definition
@@ -263,6 +264,10 @@ run :: Program -> Map Register Word -> Map Register Word
 run p rs = regs $ final
   where Left final = loop M { program = p, pc = 0, regs = rs }
         loop mach = step mach >>= loop
+
+runFor :: Int -> Machine -> Either Machine Machine
+runFor 0 mach = Right mach
+runFor n mach = step mach >>= runFor (pred n)
 
 checkState :: Map Register Word -> Maybe ()
 checkState regs = do
