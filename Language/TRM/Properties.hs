@@ -73,24 +73,24 @@ prop_succBB r x =
     Just x' -> decodeBB x' == x + 1
     _ -> False
 
-prop_addBB :: Register -> Register 
-           -> NonNegative Integer -> NonNegative Integer 
+prop_addBB :: Register -> Register
+           -> NonNegative Integer -> NonNegative Integer
            -> Property
 prop_addBB r1 r2 x y = r1 /= r2 ==>
   case lookup r1 $ runL' (addBB r1 r2) [(r1, encodeBB x), (r2, encodeBB y)] of
     Just z -> decodeBB z == x + y
     _ -> False
 
-prop_multBB :: Register -> Register 
-            -> NonNegative Integer -> NonNegative Integer 
+prop_multBB :: Register -> Register
+            -> NonNegative Integer -> NonNegative Integer
             -> Property
 prop_multBB r1 r2 x y = r1 /= r2 ==>
   case lookup r1 $ runL' (multBB r1 r2) [(r1, encodeBB x), (r2, encodeBB y)] of
     Just z -> decodeBB z == x * y
     _ -> False
 
-prop_exptBB :: Register -> Register 
-            -> NonNegative Integer -> NonNegative Integer 
+prop_exptBB :: Register -> Register
+            -> NonNegative Integer -> NonNegative Integer
             -> Property
 prop_exptBB r1 r2 x y = r1 /= r2 ==>
   case lookup r1 $ runL' (exptBB r1 r2) [(r1, encodeBB x), (r2, encodeBB y)] of

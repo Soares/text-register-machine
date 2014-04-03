@@ -54,16 +54,16 @@ compare' = "1##### 111111### 111111111### 11##### 1111111111 1### 1111111111### 
 
 clear :: Register -- ^ 'Register' to clear.
       -> LComp ()
-clear r = 
-  do_ $ \continue break -> 
+clear r =
+  do_ $ \continue break ->
       cond r break continue continue
-                   
+
 move :: Register -- ^ Source 'Register'.
      -> Register -- ^ Destination 'Register'.
      -> LComp ()
-move src dest = 
-  do_ $ \continue break -> 
-    cond src 
+move src dest =
+  do_ $ \continue break ->
+    cond src
          break
          (snocOne  dest >> continue)
          (snocHash dest >> continue)
@@ -93,10 +93,10 @@ compare r1 r2 = do
          (cond r2 (goto true)   (goto clear2) (goto clear2))
          (cond r2 (goto clear1) continue      (goto clear1))
          (cond r2 (goto clear1) (goto clear1) continue     )
-  
+
   label clear1
   clear r1
- 
+
   label clear2
   clear r2
   goto false
@@ -162,7 +162,7 @@ multBB r1 r2 = do
     succBB r3
     continue
   clear r1 >> clear r2 >> clear r3
-  move r4 r1    
+  move r4 r1
 
 exptBB :: Register -> Register -> LComp ()
 exptBB r1 r2 = do
@@ -172,13 +172,13 @@ exptBB r1 r2 = do
   snocHash r3 >> snocOne r4
   do_ $ \continue break -> do
     -- test
-    copy r2 r5 
-    copy r3 r6 
+    copy r2 r5
+    copy r3 r6
     compare r5 r6
     cond r5 (goto recCase) break (goto recCase)
     -- recursive case
     label recCase
-    copy r1 r5 
+    copy r1 r5
     move r4 r6
     multBB r5 r6
     move r5 r4

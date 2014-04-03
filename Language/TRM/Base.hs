@@ -7,7 +7,7 @@
 {-# OPTIONS_GHC -Wall #-}
 
 -- | An implementation of Lawrence S. Moss' @1\#@ language and Text
--- Register Machine (<http://www.indiana.edu/~iulg/trm/>). 
+-- Register Machine (<http://www.indiana.edu/~iulg/trm/>).
 --
 -- This module also includes a slightly higher-level language, @1\#L@,
 -- that replaces the forward and backward relative jumps of @1\#@ with
@@ -95,12 +95,12 @@ newtype Word = W [Letter] deriving (Eq, Monoid)
 
 instance IsString Word where
   fromString []     = W []
-  fromString (x:xs) = 
+  fromString (x:xs) =
     let (W ls) = fromString xs
     in case x of
          '1'           -> W (One:ls)
          '#'           -> W (Hash:ls)
-         c | isSpace c -> W ls 
+         c | isSpace c -> W ls
          _             -> error $ "invalid 1# string: " ++ (x:xs)
 
 -- | Convert a 'Word' back into a 'String'.
@@ -113,7 +113,7 @@ instance Show Word where
   show = show . wordToString
 
 -- | Register identifiers.
-newtype Register = R Int 
+newtype Register = R Int
     deriving (Eq, Ord, Show, Enum, Real, Integral, Num)
 
 -- | Abstract syntax for the primitive @1#@ instructions.
@@ -166,7 +166,7 @@ parseProgram w = Vector.fromList <$> evalStateT loop w
 -- | A 'Machine' consists of a 'Program', a program counter, and a
 -- 'Map' from registers to the words they contain.
 data Machine = M { program :: Program
-                 , pc      :: Int 
+                 , pc      :: Int
                  , regs    :: Map Register Word
                  } deriving (Eq, Show)
 
@@ -174,7 +174,7 @@ snocReg :: Register -> Letter -> Map Register Word -> Map Register Word
 snocReg r l regs = Map.insertWith (flip (++)) r (W [l]) regs
 
 unsnocReg :: Register -> Map Register Word -> Maybe (Letter, Map Register Word)
-unsnocReg r regs = 
+unsnocReg r regs =
   case Map.lookup r regs of
     Nothing            -> mzero
     Just (W [])        -> mzero
@@ -185,7 +185,7 @@ unsnocReg r regs =
 -- counter, if available. Returns 'Left mach' if a step cannot be
 -- performed, and 'Right mach' with an updated 'Machine' otherwise.
 step :: Machine -> Either Machine Machine
-step mach@M { program, pc } 
+step mach@M { program, pc }
   | pc < 0 || pc >= Vector.length program = Left mach
 step mach@M { program, pc, regs } =
   case program Vector.! pc of
@@ -193,12 +193,12 @@ step mach@M { program, pc, regs } =
     SnocHash r -> return $ mach { pc = pc+1, regs = snocReg r Hash regs }
     Forward  i -> return $ mach { pc = pc+i }
     Backward i -> return $ mach { pc = pc-i }
-    Case     r -> 
+    Case     r ->
       case unsnocReg r regs of
         Nothing            -> return $ mach { pc = pc+1 }
         Just (One , regs') -> return $ mach { pc = pc+2, regs = regs' }
         Just (Hash, regs') -> return $ mach { pc = pc+3, regs = regs' }
-    
+
 -- | Given a 'Program' and the initial state of the registers, return
 -- the final state of the registers.
 run :: Program -> Map Register Word -> Map Register Word
@@ -249,12 +249,12 @@ exposeLabels p = Vector.ifoldl' exposeLabel Map.empty p
         fresh labs = Map.size labs
         exposeLabel :: Map Int Label
                     -> Int
-                    -> Instruction 
+                    -> Instruction
                     -> Map Int Label
-        exposeLabel labs pos (Forward rel)  
+        exposeLabel labs pos (Forward rel)
           | pos + rel <= end && pos + rel >= 0
           = Map.insertWith (\_ lab -> lab) (pos+rel) (fresh labs) labs
-        exposeLabel labs pos (Backward rel) 
+        exposeLabel labs pos (Backward rel)
           | pos - rel <= end && pos - rel >= 0
           = Map.insertWith (\_ lab -> lab) (pos-rel) (fresh labs) labs
         exposeLabel _ _ (Forward  _) = error "forward jump out of range"
@@ -280,11 +280,11 @@ toLabeledProgram p = Vector.concat (insertLabels 0)
             case Map.lookup (pos-rel) labels of
               Just lab -> LGoto lab
               Nothing -> error "couldn't find label for position"
-        insertLabels i | i == Vector.length p' = 
+        insertLabels i | i == Vector.length p' =
           case Map.lookup i labels of
             Nothing -> []
             Just lab -> [Vector.singleton $ LLabel lab]
-        insertLabels i = 
+        insertLabels i =
           case Map.lookup i labels of
             Nothing  -> (Vector.singleton $ p' Vector.! i) : insertLabels (i+1)
             Just lab -> (Vector.fromList $ [LLabel lab, p' Vector.! i])
@@ -293,7 +293,7 @@ toLabeledProgram p = Vector.concat (insertLabels 0)
 exposePositions :: LProgram -> Map Label Int
 exposePositions lp = fst $ Vector.ifoldl' exposePosition (Map.empty, 0) lp
   where exposePosition (poss, seen) pos (LLabel lab) =
-          ( Map.insertWith (error $ "duplicate label " ++ show lab) 
+          ( Map.insertWith (error $ "duplicate label " ++ show lab)
                            lab (pos-seen) poss
           , seen+1 )
         exposePosition p _ _ = p
@@ -310,11 +310,11 @@ fromLabeledProgram lp = insertJumps . removeLabels $ lp
         isLabel (LLabel _) = True
         isLabel _          = False
         poss = exposePositions lp
-        insertJumps = Vector.imap insertJump 
+        insertJumps = Vector.imap insertJump
         insertJump _   (LSnocOne  r) = SnocOne  r
         insertJump _   (LSnocHash r) = SnocHash r
         insertJump _   (LCase     r) = Case     r
-        insertJump pos (LGoto   lab) = 
+        insertJump pos (LGoto   lab) =
           case Map.lookup lab poss of
             Nothing -> error $ "unbound label " ++ show lab
             Just dest | dest > pos -> Forward  (dest - pos)
@@ -350,7 +350,7 @@ class LSymantics repr where
              -> repr ()
 
 -- | The default backend for 'LSymantics'.
-newtype LComp a = LC { unLC :: StateT (Int, Set Label, Register) 
+newtype LComp a = LC { unLC :: StateT (Int, Set Label, Register)
                                (Writer LProgram) a }
     deriving ( Functor, Applicative, Monad, MonadFix
              , MonadState (Int, Set Label, Register), MonadWriter LProgram)
@@ -370,7 +370,7 @@ instance LSymantics LComp where
                   put (l, ls, r+1)
                   return r
   goto       = tell . Vector.singleton . LGoto
-  cond r bEmpty bOne bHash = do 
+  cond r bEmpty bOne bHash = do
     [lEmpty, lOne, lHash] <- replicateM 3 freshLabel
     tell . Vector.singleton $ LCase r
     goto  lEmpty >> goto lOne >> goto lHash
@@ -392,7 +392,7 @@ compileL r prog = execWriter (evalStateT (unLC prog) (0, Set.empty, r))
 -- runs it in the given register state. May return 'Nothing' if the
 -- program does not halt cleanly, as with 'run'.
 runL :: LComp () -> [(Register, Word)] -> Maybe Word
-runL p rs = do 
+runL p rs = do
   let maxarg = 1 + (maximum . map fst $ rs)
       final = (run . fromLabeledProgram . compileL maxarg $ p) (Map.fromList rs)
   checkState final
@@ -403,7 +403,7 @@ runL p rs = do
 -- program does not halt cleanly, as with 'run'.
 runL' :: LComp () -> [(Register, Word)] -> [(Register, Word)]
 runL' p rs = Map.toList final
-  where 
+  where
     maxarg = 1 + (maximum . map fst $ rs)
     final  = (run . fromLabeledProgram . compileL maxarg $ p) (Map.fromList rs)
 
@@ -435,7 +435,7 @@ decodeBB (W ys) = fromInteger $ dec ys
         dec (One:xs)  = 1 + (2 * dec xs)
 
 -- | A combinator to cleanly implement looping structures in 'LComp' code.
--- 
+--
 -- Takes a function that expects two arguments, @continue@ and
 -- @break@. The body of the function is a block of 'LComp' code that
 -- gets repeated whenever @continue@ is run. If @break@ is run,
